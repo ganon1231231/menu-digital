@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Menú Digital</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: black;
+    }
+    img {
+      width: 100vw;
+      height: 100vh;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+
+  <script>
+    const files = [
+      "https://drive.google.com/uc?export=download&id=1ALrEjOeJoN5frVoZpE6F6XruKQf67ArM",
+      "https://drive.google.com/uc?export=download&id=1AyyMA8zmpAdhNi3jdcR2n66xAX-fLtkT",
+      "https://drive.google.com/uc?export=download&id=1Cz43HPtSoM9ZTA-7iNyn0lQdZPb8PYP8",
+      "https://drive.google.com/uc?export=download&id=1EdYEKV4ZTyLtAxPMBovqj5neZPbFnhkS",
+      "https://drive.google.com/uc?export=download&id=1J1nJmS8DtaGHVm9xNwskvXDRr9K_lhnK",
+      "https://drive.google.com/uc?export=download&id=1MIdq0_MmE1Gaxjz8a0yWClp0Kv-EDb2S",
+      "https://drive.google.com/uc?export=download&id=1Q0OH9TNVOBP5pxHklwlfWB-yc7n-HDAa",
+      "https://drive.google.com/uc?export=download&id=1TDDjeqx2RYRtRVN6vbK7DUkE_mSH3vRg"
+    ];
+
+    let index = 0;
+    const container = document.getElementById("container");
+
+    function showNext() {
+      container.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = files[index];
+      container.appendChild(img);
+      index = (index + 1) % files.length;
+      setTimeout(showNext, 10000); // 10 segundos por imagen
+    }
+
+    showNext();
+  </script>
+</body>
+</html>
