@@ -6,50 +6,17 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      background-color: black;
-      overflow: hidden; /* Evita barras de scroll */
-      width: 100%;
-      height: 100%;
-    }
-    img, video {
-      width: 100vw;
-      height: 100vh;
-      /* 'cover' llena toda la pantalla */
-      object-fit: cover; 
-    }
-    /* Overlay para iniciar en pantalla completa */
-    #start-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: white;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      font-size: 3vw;
-      text-align: center;
-      cursor: pointer;
-      z-index: 10;
-    }
+    body, html { margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100%; height: 100%; }
+    img, video { width: 100vw; height: 100vh; object-fit: cover; }
+    #start-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 3vw; text-align: center; cursor: pointer; z-index: 10; }
   </style>
 </head>
 <body>
   
   <div id="container"></div>
-
-  <div id="start-overlay">
-    <p>Toca para iniciar el menú</p>
-  </div>
+  <div id="start-overlay"><p>Toca para iniciar el menú</p></div>
 
   <script>
-    // Reemplaza esto con tu configuración de Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDY5nvnupdsJ1_kOHntBJbcWStGOXa1YSs",
       authDomain: "menu-digital-7e07e.firebaseapp.com",
@@ -66,12 +33,11 @@
     const container = document.getElementById("container");
     const startOverlay = document.getElementById("start-overlay");
 
-    // Función para entrar en modo pantalla completa
     function enterFullScreen() {
       const elem = document.documentElement;
       if (elem.requestFullscreen) {
         elem.requestFullscreen().catch(err => console.log(err));
-      } else if (elem.webkitRequestFullscreen) { /* Safari */
+      } else if (elem.webkitRequestFullscreen) {
         elem.webkitRequestFullscreen();
       }
     }
@@ -80,59 +46,52 @@
       if (!files.length) return;
       container.innerHTML = "";
 
-      const file = files[idx];
+      const fileData = files[idx]; // Ahora tenemos el objeto completo (url, type, etc)
       let el;
 
-      if (/\.(mp4|webm|mov)$/i.test(file)) {
+      // LÓGICA CORREGIDA: Leemos el campo "type" para decidir si es video o imagen
+      if (fileData.type === "video") {
         el = document.createElement("video");
-        el.src = file;
+        el.src = fileData.url;
         el.autoplay = true;
         el.controls = false;
         el.playsInline = true;
-        el.muted = true; // MUY IMPORTANTE para autoplay en navegadores
-        
-        // Manejo de errores para el video
-        el.onerror = () => {
-          console.error("Error al cargar el video:", file);
-          // Salta al siguiente archivo si hay un error
-          idx = (idx + 1) % files.length;
-          showNext();
-        };
-        
+        el.muted = true;
         el.onended = () => {
           idx = (idx + 1) % files.length;
           showNext();
         };
-        
-        // Intento adicional de reproducción por si autoplay falla
-        el.play().catch(error => console.log("Autoplay bloqueado, se necesita interacción.", error));
-
+        el.onerror = () => {
+          console.error("Error al cargar el video:", fileData.url);
+          idx = (idx + 1) % files.length;
+          showNext();
+        };
+        el.play().catch(error => console.log("Autoplay bloqueado.", error));
       } else {
         el = document.createElement("img");
-        el.src = file;
+        el.src = fileData.url;
         setTimeout(() => {
           idx = (idx + 1) % files.length;
           showNext();
-        }, 10000); // 10 segundos para imágenes
+        }, 10000);
       }
       container.appendChild(el);
     }
 
-    // El listener ahora se activa con un click para cumplir las políticas del navegador
     startOverlay.addEventListener('click', () => {
       enterFullScreen();
-      startOverlay.style.display = 'none'; // Oculta el overlay
+      startOverlay.style.display = 'none';
 
       db.collection("images")
-        .orderBy("position") // Ordena por la posición que defines en la app
+        .orderBy("position")
         .onSnapshot(
           (snapshot) => {
-            const currentIdxBeforeReload = idx;
-            const currentFileBeforeReload = files.length > 0 ? files[currentIdxBeforeReload] : null;
-
-            files = snapshot.docs.map(doc => doc.data().url).filter(url => typeof url === "string");
+            const currentUrlBeforeReload = files.length > 0 ? files[idx].url : null;
             
-            const newIdx = files.indexOf(currentFileBeforeReload);
+            // LÓGICA CORREGIDA: Guardamos el objeto completo de la base de datos
+            files = snapshot.docs.map(doc => doc.data());
+            
+            const newIdx = files.findIndex(file => file.url === currentUrlBeforeReload);
             idx = (newIdx !== -1) ? newIdx : 0;
             
             if (container.innerHTML === "" && files.length > 0) {
