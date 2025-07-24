@@ -3,26 +3,53 @@
 <head>
   <meta charset="UTF-8" />
   <title>Menú Digital</title>
-  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
-    body {
+    body, html {
       margin: 0;
+      padding: 0;
       background-color: black;
+      overflow: hidden; /* Evita barras de scroll */
+      width: 100%;
+      height: 100%;
     }
     img, video {
       width: 100vw;
       height: 100vh;
-      object-fit: contain;
+      /* CAMBIO: 'cover' llena toda la pantalla, 'contain' puede dejar barras negras */
+      object-fit: cover; 
+    }
+    /* NUEVO: Overlay para iniciar en pantalla completa */
+    #start-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 3vw;
+      text-align: center;
+      cursor: pointer;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
+  
   <div id="container"></div>
 
-  <!-- Initialize Firebase and Firestore -->
+  <div id="start-overlay">
+    <p>Toca para iniciar el menú</p>
+  </div>
+
   <script>
+    // Reemplaza esto con tu configuración de Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDY5nvnupdsJ1_kOHntBJbcWStGOXa1YSs",
       authDomain: "menu-digital-7e07e.firebaseapp.com",
@@ -34,25 +61,35 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-  </script>
 
-  <!-- Dynamic slideshow from Firestore -->
-  <script>
     let files = [], idx = 0;
     const container = document.getElementById("container");
+    const startOverlay = document.getElementById("start-overlay");
+
+    // NUEVO: Función para entrar en modo pantalla completa
+    function enterFullScreen() {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(err => console.log(err));
+      } else if (elem.webkitRequestFullscreen) { /* Safari */
+        elem.webkitRequestFullscreen();
+      }
+    }
 
     function showNext() {
       if (!files.length) return;
-      console.log("▷ Mostrando índice", idx, "→", files[idx]);
       container.innerHTML = "";
 
       const file = files[idx];
       let el;
-      if (/\.(mp4|webm)$/i.test(file)) {
+
+      if (/\.(mp4|webm|mov)$/i.test(file)) {
         el = document.createElement("video");
         el.src = file;
         el.autoplay = true;
         el.controls = false;
+        el.playsInline = true; // Para mejor compatibilidad en móviles
+        el.muted = true;       // <-- CAMBIO CLAVE: Autoplay en navegadores requiere que el video esté silenciado
         el.onended = () => {
           idx = (idx + 1) % files.length;
           showNext();
@@ -63,28 +100,35 @@
         setTimeout(() => {
           idx = (idx + 1) % files.length;
           showNext();
-        }, 9500); // 2 s para pruebas (luego vuelve a 10000 = 10 s)
+        }, 10000); // 10 segundos para imágenes
       }
-
       container.appendChild(el);
     }
 
-    function reloadFiles(snapshot) {
-      files = snapshot.docs
-        .map(doc => doc.data().url)
-        .filter(url => typeof url === "string");
-      console.log("Menú Digital: recibí", files.length, "archivos");
-      idx = 0;
-      if (files.length) showNext();
-    }
+    // NUEVO: El listener ahora se activa con un click para cumplir las políticas del navegador
+    startOverlay.addEventListener('click', () => {
+      enterFullScreen();
+      startOverlay.style.display = 'none'; // Oculta el overlay
 
-    // Solo listener en tiempo real
-    db.collection("images")
-      .orderBy("timestamp")
-      .onSnapshot(
-        reloadFiles,
-        err => console.error("Error en onSnapshot():", err)
-      );
+      db.collection("images")
+        .orderBy("position") // <-- CAMBIO CLAVE: Ordena por posición, no por timestamp
+        .onSnapshot(
+          (snapshot) => {
+            const currentIdxBeforeReload = idx;
+            const currentFileBeforeReload = files.length > 0 ? files[currentIdxBeforeReload] : null;
+
+            files = snapshot.docs.map(doc => doc.data().url).filter(url => typeof url === "string");
+            
+            const newIdx = files.indexOf(currentFileBeforeReload);
+            idx = (newIdx !== -1) ? newIdx : 0; // Intenta mantener la posición actual si es posible
+            
+            if (container.innerHTML === "" && files.length > 0) {
+                 showNext();
+            }
+          },
+          err => console.error("Error en onSnapshot():", err)
+        );
+    }, { once: true }); // El listener se ejecuta solo una vez
   </script>
 </body>
 </html>
